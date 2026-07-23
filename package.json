@@ -12,7 +12,8 @@
     "preview:https": "HTTPS=1 vite preview --host --port 4173",
     "typecheck": "tsc --noEmit",
     "lint": "eslint 'src/**/*.{ts,tsx}'",
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "npm run build && node scripts/gh-pages-deploy.mjs"
   },
   "dependencies": {
     "gsap": "^3.12.5",
