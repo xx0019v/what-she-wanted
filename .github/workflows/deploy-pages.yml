@@ -1,0 +1,49 @@
+name: Deploy to GitHub Pages
+
+# Auto-build and publish the WebAR app to GitHub Pages on every push to main.
+# Public URL: https://<user>.github.io/<repo>/   (relative base makes this work)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      # mind-ar pulls `canvas` (a native module only used by its offline .mind
+      # compiler, never by the browser bundle). Skip build scripts so the
+      # canvas native build can't fail the deploy — the app never imports it.
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
