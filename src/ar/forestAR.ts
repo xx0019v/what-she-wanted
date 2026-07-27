@@ -13,7 +13,7 @@
 // ────────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import { MindARThree } from 'mind-ar/dist/mindar-image-three.prod.js';
-import { buildAnchorFX, type AnchorFX } from './anchorFX';
+import { buildPageFX, type ARPage, type AnchorFX } from './pageFX';
 
 export type ARStatus = 'loading' | 'searching' | 'found' | 'lost';
 
@@ -32,9 +32,13 @@ export interface ARStats {
 export interface ForestAROptions {
   container: HTMLElement;
   targetUrl: string;
+  /** Printed pages in the target file, in tracking-index order (0,1,2,…). */
+  pages: ARPage[];
   quality: 'high' | 'low';
   reducedMotion: boolean;
   onStatus: (s: ARStatus) => void;
+  /** Optional: which page's target was just found/lost. */
+  onPage?: (page: ARPage | null) => void;
   onStats: (s: Partial<ARStats>) => void;
 }
 
@@ -74,7 +78,8 @@ function classifyCameraError(e: any): string {
 
 export class ForestAR {
   private mindar: MindARThree | null = null;
-  private fx: AnchorFX | null = null;
+  private fxs: AnchorFX[] = [];
+  private trackedCount = 0;
   private clock = new THREE.Clock();
   private startTime = 0;
   private firstFound: number | null = null;
@@ -145,20 +150,30 @@ export class ForestAR {
       });
       this.mindar = mindar;
 
-      const anchor = mindar.addAnchor(0);
-      this.fx = buildAnchorFX(anchor.group, { quality: this.opts.quality });
+      // One anchor per printed page in the target file. maxTrack:1 means only
+      // the page in view renders; each page shows its own story-specific FX.
+      this.opts.pages.forEach((page, index) => {
+        const anchor = mindar.addAnchor(index);
+        this.fxs.push(buildPageFX(page, anchor.group, { quality: this.opts.quality }));
 
-      anchor.onTargetFound = () => {
-        if (this.firstFound === null) this.firstFound = performance.now() - this.startTime;
-        if (this.everFound) this.reacquire += 1;
-        this.everFound = true;
-        this.opts.onStatus('found');
-        this.opts.onStats({ status: 'found', firstFoundMs: this.firstFound, reacquireCount: this.reacquire });
-      };
-      anchor.onTargetLost = () => {
-        this.opts.onStatus('lost');
-        this.opts.onStats({ status: 'lost' });
-      };
+        anchor.onTargetFound = () => {
+          if (this.firstFound === null) this.firstFound = performance.now() - this.startTime;
+          if (this.everFound) this.reacquire += 1;
+          this.everFound = true;
+          this.trackedCount += 1;
+          this.opts.onPage?.(page);
+          this.opts.onStatus('found');
+          this.opts.onStats({ status: 'found', firstFoundMs: this.firstFound, reacquireCount: this.reacquire });
+        };
+        anchor.onTargetLost = () => {
+          this.trackedCount = Math.max(0, this.trackedCount - 1);
+          if (this.trackedCount === 0) {
+            this.opts.onPage?.(null);
+            this.opts.onStatus('lost');
+            this.opts.onStats({ status: 'lost' });
+          }
+        };
+      });
 
       this.startTime = performance.now();
       // MindAR requests the camera here. On some in-app browsers / blocked
@@ -186,7 +201,7 @@ export class ForestAR {
         if (this.disposed) return;
         const dt = Math.min(this.clock.getDelta(), 0.05);
         const t = this.clock.elapsedTime;
-        if (!this.opts.reducedMotion) this.fx?.update(t, dt);
+        if (!this.opts.reducedMotion) for (const fx of this.fxs) fx.update(t, dt);
         // fps (rolling ~0.5s)
         this.frames += 1;
         this.fpsT += dt;
@@ -220,7 +235,7 @@ export class ForestAR {
     } catch {
       /* already stopped */
     }
-    this.fx?.dispose();
-    this.fx = null;
+    this.fxs.forEach((f) => f.dispose());
+    this.fxs = [];
   }
 }

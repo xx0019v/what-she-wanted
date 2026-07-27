@@ -16,9 +16,11 @@ const ARPreview = lazy(() => import('./components/ARPreview').then((m) => ({ def
 
 type Phase = 'loading' | 'start' | 'ar' | 'demo' | 'world' | 'arfx';
 
-// Today's focus: a rock-solid printed-page AR proof of concept for page 04.
+// Printed-page AR. The compiled target file carries these pages in this exact
+// index order (see scripts/compile-targets.mjs); each shows its own FX.
 const AR_SCENE = 4;
-const TARGET_URL = `${import.meta.env.BASE_URL}targets/forest-page.mind`;
+const AR_PAGES: ARPage[] = [4, 5, 11, 17];
+const TARGET_URL = `${import.meta.env.BASE_URL}targets/pages.mind`;
 
 // QA / preview deep-link: ?view=world|demo|ar jumps straight to a phase so the
 // 360° world and page layers can be reviewed without re-clicking the flow.
@@ -110,6 +112,7 @@ export function App() {
             quality={quality}
             reducedMotion={reduced}
             targetUrl={TARGET_URL}
+            pages={AR_PAGES}
             onBack={() => setPhase('start')}
             onDemo={() => setPhase('demo')}
             onEnterWorld={() => setPhase('world')}

@@ -287,7 +287,7 @@ export class ImmersiveWorld {
       for (let i = 0; i < ring.count; i++) {
         const a = (i / ring.count) * Math.PI * 2 + (Math.random() - 0.5) * ring.jitter;
         // angular distance from the moon bearing
-        let d = Math.abs(((a - MOON_AZ + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
+        const d = Math.abs(((a - MOON_AZ + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
         if (d < CLEARING && ring.radius < 90) continue; // keep near/mid rings open; far ring frames the moon
         const r = ring.radius * (0.82 + Math.random() * 0.4);
         const h = ring.h * (0.62 + Math.random() * 0.7);

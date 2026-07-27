@@ -55,7 +55,8 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
     const fx: AnchorFX = buildPageFX(page, group, { quality });
 
     // camera orbit
-    let yaw = 0.5, pitch = 0.32, dist = 1.7;
+    const dist = 1.7;
+    let yaw = 0.5, pitch = 0.32;
     let targetYaw = 0.5, targetPitch = 0.32;
     let dragging = false;
     let last = { x: 0, y: 0 };

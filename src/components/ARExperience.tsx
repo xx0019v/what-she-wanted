@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ForestAR, type ARStats, type ARStatus } from '../ar/forestAR';
+import type { ARPage } from '../ar/pageFX';
 import { AmbientBackdrop } from './AmbientBackdrop';
 import { BUILD_ID, clearCacheAndReload, isInAppBrowser, isIOS, isSafari, isSecure } from '../lib/env';
 import type { Lang, Quality } from '../lib/prefs';
@@ -9,6 +10,7 @@ interface Props {
   quality: Quality;
   reducedMotion: boolean;
   targetUrl: string;
+  pages: ARPage[];
   onBack: () => void;
   onDemo: () => void;
   onEnterWorld: () => void;
@@ -80,7 +82,7 @@ function errorCopy(code: string, lang: Lang): { title: string; body: string } {
   }
 }
 
-export function ARExperience({ lang, quality, reducedMotion, targetUrl, onBack, onDemo, onEnterWorld }: Props) {
+export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, onBack, onDemo, onEnterWorld }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const arRef = useRef<ForestAR | null>(null);
   const [stats, setStats] = useState<ARStats>(initialStats);
@@ -102,6 +104,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, onBack, 
       ar = new ForestAR({
         container: containerRef.current!,
         targetUrl,
+        pages,
         quality,
         reducedMotion,
         onStatus: (s) => {
@@ -125,7 +128,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, onBack, 
       ar?.dispose();
       arRef.current = null;
     };
-  }, [targetUrl, quality, reducedMotion, nonce]);
+  }, [targetUrl, pages, quality, reducedMotion, nonce]);
 
   const restart = () => {
     arRef.current?.dispose();
