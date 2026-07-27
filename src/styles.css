@@ -240,6 +240,13 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .ar-debug .row b[data-s='lost'] { color: var(--violet); }
 .ar-debug .row b[data-s='searching'] { color: var(--moonlight); }
 .ar-debug .ua { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-debug { max-height: 88vh; overflow-y: auto; }
+.ar-debug .page-seen b { display: flex; gap: 7px; }
+.ar-debug .page-seen b span { opacity: 0.3; }
+.ar-debug .page-seen b span[data-on='true'] { opacity: 1; color: #9ae6b4; }
+.ar-debug-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.ar-debug-actions .chip { border: 1px solid rgba(169,195,230,0.25); border-radius: 4px; padding: 5px 7px; font-size: 9.5px; letter-spacing: 0.12em; opacity: 0.85; }
+.ar-debug-actions .chip:hover, .ar-debug-actions .chip:focus-visible { opacity: 1; border-color: var(--moonlight); }
 
 /* ═══════════════════════════════════════════════════════════════
    Premium redesign layer

@@ -22,6 +22,10 @@ export interface ARStats {
   fps: number;
   firstFoundMs: number | null;
   reacquireCount: number;
+  foundCount: number;
+  lostCount: number;
+  targetIndex: number | null;
+  detectedPage: ARPage | null;
   targetLoaded: boolean;
   cameraActive: boolean;
   resolution: string;
@@ -84,6 +88,8 @@ export class ForestAR {
   private startTime = 0;
   private firstFound: number | null = null;
   private reacquire = 0;
+  private foundCount = 0;
+  private lostCount = 0;
   private everFound = false;
   private frames = 0;
   private fpsT = 0;
@@ -161,16 +167,26 @@ export class ForestAR {
           if (this.everFound) this.reacquire += 1;
           this.everFound = true;
           this.trackedCount += 1;
+          this.foundCount += 1;
           this.opts.onPage?.(page);
           this.opts.onStatus('found');
-          this.opts.onStats({ status: 'found', firstFoundMs: this.firstFound, reacquireCount: this.reacquire });
+          this.opts.onStats({
+            status: 'found',
+            firstFoundMs: this.firstFound,
+            reacquireCount: this.reacquire,
+            foundCount: this.foundCount,
+            targetIndex: index,
+            detectedPage: page,
+          });
         };
         anchor.onTargetLost = () => {
           this.trackedCount = Math.max(0, this.trackedCount - 1);
+          this.lostCount += 1;
+          this.opts.onStats({ lostCount: this.lostCount });
           if (this.trackedCount === 0) {
             this.opts.onPage?.(null);
             this.opts.onStatus('lost');
-            this.opts.onStats({ status: 'lost' });
+            this.opts.onStats({ status: 'lost', detectedPage: null, targetIndex: null });
           }
         };
       });

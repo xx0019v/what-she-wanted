@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ForestAR, type ARStats, type ARStatus } from '../ar/forestAR';
 import type { ARPage } from '../ar/pageFX';
 import { AmbientBackdrop } from './AmbientBackdrop';
-import { BUILD_ID, clearCacheAndReload, isInAppBrowser, isIOS, isSafari, isSecure } from '../lib/env';
+import { BUILD_ID, BUILD_TIME, clearCacheAndReload, isInAppBrowser, isIOS, isSafari, isSecure } from '../lib/env';
 import type { Lang, Quality } from '../lib/prefs';
 
 interface Props {
@@ -25,8 +25,13 @@ const debugParam = new URLSearchParams(location.search).get('debug') === '1';
 
 const initialStats: ARStats = {
   status: 'loading', fps: 0, firstFoundMs: null, reacquireCount: 0,
+  foundCount: 0, lostCount: 0, targetIndex: null, detectedPage: null,
   targetLoaded: false, cameraActive: false, resolution: '—', device: ua, error: null,
 };
+
+const hasWebGL = (() => {
+  try { const c = document.createElement('canvas'); return !!(c.getContext('webgl') || c.getContext('experimental-webgl')); } catch { return false; }
+})();
 
 /** Localised copy for each recoverable failure mode. */
 function errorCopy(code: string, lang: Lang): { title: string; body: string } {
@@ -91,6 +96,9 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
   const [debug, setDebug] = useState(debugParam);
   const [stableFound, setStableFound] = useState(false);
   const [nonce, setNonce] = useState(0); // bump to restart
+  const [qualityOverride, setQualityOverride] = useState<Quality | null>(null);
+  const [seenPages, setSeenPages] = useState<number[]>([]);
+  const q = qualityOverride ?? quality;
 
   useEffect(() => {
     if (!secure) {
@@ -105,7 +113,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
         container: containerRef.current!,
         targetUrl,
         pages,
-        quality,
+        quality: q,
         reducedMotion,
         onStatus: (s) => {
           setStatus(s);
@@ -116,6 +124,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
             if (s === 'lost') setStableFound(false);
           }
         },
+        onPage: (p) => { if (p != null) setSeenPages((prev) => (prev.includes(p) ? prev : [...prev, p])); },
         onStats: (partial) => setStats((prev) => ({ ...prev, ...partial })),
       });
       arRef.current = ar;
@@ -128,7 +137,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
       ar?.dispose();
       arRef.current = null;
     };
-  }, [targetUrl, pages, quality, reducedMotion, nonce]);
+  }, [targetUrl, pages, q, reducedMotion, nonce]);
 
   const restart = () => {
     arRef.current?.dispose();
@@ -136,7 +145,61 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
     setStatus('loading');
     setFatal(null);
     setStableFound(false);
+    setSeenPages([]);
     setNonce((n) => n + 1);
+  };
+
+  const forceQuality = (ql: Quality) => {
+    setQualityOverride(ql);
+    setStats(initialStats);
+    setStatus('loading');
+    setStableFound(false);
+    setSeenPages([]);
+    setNonce((n) => n + 1);
+  };
+
+  const buildLog = () =>
+    JSON.stringify(
+      {
+        url: location.href,
+        build: BUILD_ID,
+        buildTime: BUILD_TIME,
+        appStatus: fatal ? 'ERROR' : status,
+        detectedPage: stats.detectedPage,
+        targetIndex: stats.targetIndex,
+        seenPages,
+        firstFoundMs: stats.firstFoundMs,
+        foundCount: stats.foundCount,
+        lostCount: stats.lostCount,
+        reacquireCount: stats.reacquireCount,
+        fps: stats.fps,
+        targetLoaded: stats.targetLoaded,
+        cameraActive: stats.cameraActive,
+        resolution: stats.resolution,
+        quality: q,
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        dpr: window.devicePixelRatio,
+        webgl: hasWebGL,
+        iOS,
+        safari,
+        inApp,
+        secure,
+        error: stats.error ?? fatal ?? null,
+        ua: navigator.userAgent,
+        ts: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+  const [copied, setCopied] = useState(false);
+  const copyLog = async () => {
+    try {
+      await navigator.clipboard.writeText(buildLog());
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard may be unavailable */
+    }
   };
 
   const warming = status === 'loading' && !fatal;
@@ -225,25 +288,37 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
         </div>
       )}
 
-      {/* Debug overlay */}
+      {/* Debug overlay — the real-device diagnostics harness (?debug=1) */}
       {debug && (
         <div className="ar-debug" role="status" aria-live="polite">
           <div className="row"><span>STATUS</span><b data-s={status}>{fatal ? 'ERROR' : status.toUpperCase()}</b></div>
-          <div className="row"><span>FPS</span><b>{stats.fps}</b></div>
-          <div className="row"><span>TARGET</span><b>{stats.targetLoaded ? 'LOADED' : '—'}</b></div>
-          <div className="row"><span>CAMERA</span><b>{stats.cameraActive ? 'ACTIVE' : fatal ? 'OFF' : '—'}</b></div>
-          <div className="row"><span>RESOLUTION</span><b>{stats.resolution}</b></div>
+          <div className="row"><span>DETECTED PAGE</span><b data-s={stats.detectedPage ? 'found' : undefined}>{stats.detectedPage ? `p${stats.detectedPage}` : '—'}</b></div>
+          <div className="row"><span>TARGET INDEX</span><b>{stats.targetIndex ?? '—'}</b></div>
+          <div className="row page-seen">
+            <span>PAGES SEEN</span>
+            <b>{pages.map((p) => <span key={p} data-on={seenPages.includes(p)}>p{p}</span>)}</b>
+          </div>
           <div className="row"><span>FIRST FOUND</span><b>{stats.firstFoundMs != null ? `${Math.round(stats.firstFoundMs)} ms` : '—'}</b></div>
+          <div className="row"><span>FOUND / LOST</span><b>{stats.foundCount} / {stats.lostCount}</b></div>
           <div className="row"><span>RE-ACQUIRE</span><b>{stats.reacquireCount}</b></div>
-          <div className="row"><span>SECURE / HTTPS</span><b>{String(secure)}</b></div>
-          <div className="row"><span>iOS / SAFARI</span><b>{String(iOS)} / {String(safari)}</b></div>
-          <div className="row"><span>IN-APP BROWSER</span><b>{String(inApp)}</b></div>
-          <div className="row"><span>BUILD</span><b>{BUILD_ID}</b></div>
+          <div className="row"><span>FPS</span><b>{stats.fps}</b></div>
+          <div className="row"><span>QUALITY</span><b>{q.toUpperCase()}{qualityOverride ? '*' : ''}</b></div>
+          <div className="row"><span>TARGET / CAMERA</span><b>{stats.targetLoaded ? 'LOADED' : '—'} / {stats.cameraActive ? 'ACTIVE' : fatal ? 'OFF' : '—'}</b></div>
+          <div className="row"><span>RESOLUTION</span><b>{stats.resolution}</b></div>
+          <div className="row"><span>VIEWPORT / DPR</span><b>{window.innerWidth}×{window.innerHeight} / {window.devicePixelRatio}</b></div>
+          <div className="row"><span>WEBGL</span><b>{String(hasWebGL)}</b></div>
+          <div className="row"><span>iOS / SAFARI / INAPP</span><b>{iOS ? 'Y' : 'N'} / {safari ? 'Y' : 'N'} / {inApp ? 'Y' : 'N'}</b></div>
+          <div className="row small"><span>BUILD</span><b>{BUILD_ID}</b></div>
+          <div className="row small"><span>DEPLOY</span><b>{BUILD_TIME ? BUILD_TIME.replace('T', ' ').slice(0, 16) : '—'}</b></div>
           <div className="row small"><span>ERROR</span><b>{stats.error ?? fatal ?? 'none'}</b></div>
-          <div className="row small"><span>UA</span><b className="ua">{stats.device.slice(0, 60)}…</b></div>
-          <button className="chip" style={{ marginTop: 6, alignSelf: 'flex-start' }} onClick={() => clearCacheAndReload()}>
-            CLEAR CACHE &amp; RELOAD
-          </button>
+          <div className="ar-debug-actions">
+            <button className="chip" onClick={copyLog}>{copied ? 'COPIED ✓' : 'COPY LOG'}</button>
+            <button className="chip" onClick={restart}>RELOAD TARGET</button>
+            <button className="chip" onClick={() => forceQuality('low')}>FORCE LOW</button>
+            <button className="chip" onClick={() => forceQuality('high')}>FORCE HIGH</button>
+            <button className="chip" onClick={onDemo}>DEMO</button>
+            <button className="chip" onClick={() => clearCacheAndReload()}>CLEAR CACHE</button>
+          </div>
         </div>
       )}
     </div>
