@@ -1,66 +1,69 @@
 # WHAT SHE WANTED — Enter the Story
+
+**▶ Live:  https://xx0019v.github.io/what-she-wanted/**
 **ISCA 2026 · Digital Content** — an interactive picture-book that lives beyond the printed page.
 
 > The printed page shows what happened. The camera reveals what remained inside her.
 
-A silent, dark-fantasy web experience in two layers:
-- **PAGE ALIVE** — point a phone at a printed page; the scene breathes with 2.5D parallax, fog, fireflies, memory ribbons and light (all procedural — no added AI art).
-- **ENTER THE WORLD** — step into a navigable 360° moonlit forest built in Three.js, with gaze-activated story points.
+A silent, dark-fantasy web experience in three layers:
+- **PAGE ALIVE** — hold a phone to a printed page; the scene breathes with parallax, fog, fireflies, memory ribbons and light (all procedural — no added AI art).
+- **THE FOREST LEAVES THE PAGE** — a 3-D moon lifts off the paper, branches overhang the edge, fog and fireflies spill into the room. Each of pages 4 / 5 / 11 / 17 has its own story-specific staging.
+- **ENTER THE WORLD** — step through moonlight into a navigable 360° forest with gaze-activated story points.
 
-Bilingual (EN/JP), fully silent by design, PWA-installable, camera-optional with graceful fallbacks.
+Bilingual (EN/JP), silent by design, PWA-installable, camera-optional with graceful fallbacks.
 
 ---
 
-## Run it
+## View it now (no install)
+Open the live URL above. Handy deep-links:
+- `/?view=world` — the immersive 360° forest
+- `/?view=arfx&page=4` (or `5` · `11` · `17`) — **camera-free spatial preview** of each page's off-page AR
+- `/?view=demo` — page-alive (atmosphere + floating subtitles)
+- `/?view=ar&debug=1` — the real camera AR with the on-device diagnostics panel
 
+## Test on iPhone with printed pages
+1. Print the pages — files are served at **`/print/`** (or in `print/`):
+   `AR_TEST_PRINT_GUIDE.pdf` (QR + how-to + record grid), and `page-04-forest-a4.pdf`,
+   `page-05-witch-meeting-a4.pdf`, `page-11-violet-moon-a4.pdf`, `page-17-cycle-a4.pdf` (PDF + PNG).
+2. Open the live URL in **Safari** → *Begin AR* → allow the camera → frame the whole page.
+3. Add `?debug=1`, then **COPY LOG** and send it back. Full protocol: **`docs/REAL_DEVICE_TEST.md`**.
+
+## Run locally
 ```bash
 npm install
-npm run dev        # http://localhost:5173  (camera works on localhost)
+npm run dev            # http://localhost:5173  (camera works on localhost)
+npm run build && npm run preview
 ```
+Quality gates: `npm run typecheck` · `npm run lint` · `npm run test`
 
-Production build + preview:
+## Deploy
 ```bash
-npm run build
-npm run preview          # http://localhost:4173
-npm run preview:https    # TLS, for phone testing over LAN
+npm run deploy         # builds, force-pushes ./dist to the gh-pages branch
 ```
+Published at https://xx0019v.github.io/what-she-wanted/ (Pages serves `gh-pages`; `main` is source).
 
-Quality gates:
+## Tooling
 ```bash
-npm run typecheck   # tsc, no errors
-npm run lint        # eslint, clean
-npm run test        # vitest (story-data integrity)
-```
-
-## 📷 Test on a phone with printed pages
-See **`docs/CAMERA_TEST_TODAY.md`** — print `docs/print-targets-A4.pdf`, compile
-`targets.mind` (1-min web tool), open over HTTPS (Netlify Drop is the easiest path).
-
-## Tooling scripts
-```bash
-node scripts/make-icons.mjs         # procedural moon PWA icons
-python3 scripts/make-assets.py      # WebP derivatives + representative stills
-node scripts/qa.mjs                 # Playwright browser QA + screenshots (needs: npx playwright install chromium)
-node scripts/capture-video.mjs      # records the live-app jury video (≤3 min)
-bash scripts/build-concept-video.sh # offline concept-preview MP4 from page art
+python3 scripts/make-print-kit.py                 # 4-page A4 print kit + QR guide
+node scripts/compile-targets.mjs <out> <a.rgba> …  # offline multi-target .mind compiler
 ```
 
 ## Tech
-Vite · React 18 · TypeScript (strict) · Three.js (procedural 360° world) · Canvas 2D
-atmosphere engine · GSAP-ready timing · MindAR (CDN, image tracking) · hand-written
-PWA (manifest + service worker) · Playwright QA.
+Vite · React 18 · TypeScript (strict) · Three.js (procedural off-page AR + 360° world) ·
+Canvas 2D atmosphere · MindAR (image tracking, 4-page `pages.mind`) · hand-written PWA · Playwright QA.
 
 ## Structure
 ```
-public/pages/        17 page images (.webp derivatives + .jpg originals)
-public/targets/      drop targets.mind here (see README inside)
-src/data/            scenes.ts (story + EN/JP subtitles), worldPoints.ts
-src/fx/              atmosphere.ts (procedural canvas FX)
-src/three/           world.ts (360° forest)
-src/components/      StartScreen, PageStage, EnterPrompt, ImmersiveView, CameraScanner, ...
-docs/                design docs, QA, print PDF, camera runbook, video
-scripts/             asset/icon/video/QA automation
+public/pages/     17 page images (.webp + .jpg)
+public/targets/   pages.mind (p4/p5/p11/p17, indices 0-3)
+public/print/     A4 print kit (served) + qr.png
+src/ar/           anchorFX.ts (p4 depth) · pageFX.ts (p5/p11/p17) · forestAR.ts (MindAR)
+src/three/        world.ts (360° forest)
+src/fx/           atmosphere.ts (procedural canvas FX)
+src/components/    StartScreen, PageStage, ARExperience, ARPreview, ImmersiveView, …
+docs/             WORLD_CLASS_UPGRADE.md · REAL_DEVICE_TEST.md · design/QA notes
 ```
 
-Camera recognition requires a compiled `targets.mind` (not committed — generate in ~1 min).
-Without it, the app runs fully via manual page selection.
+See **`docs/WORLD_CLASS_UPGRADE.md`** for what each layer does and **`docs/REAL_DEVICE_TEST.md`**
+for the iPhone test + fix loop. On-device camera tracking (recognition speed, jitter, FPS) can
+only be measured on a real phone; everything else is verified.
