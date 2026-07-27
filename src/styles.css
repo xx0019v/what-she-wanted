@@ -169,6 +169,19 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 
 .world-caption { position: absolute; z-index: 45; left: 50%; bottom: max(11vh, env(safe-area-inset-bottom)); transform: translateX(-50%); max-width: 74vw; text-align: center; }
 
+/* Continuous page → world entry: a moonlight/fog bloom opens onto the forest */
+.world-intro {
+  position: absolute; inset: 0; z-index: 12; pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(224,234,252,0.95), rgba(158,180,226,0.6) 20%, rgba(20,26,48,0.86) 58%, #05070d 100%);
+  animation: worldIntro 2s var(--ease) forwards;
+}
+@keyframes worldIntro {
+  0%   { opacity: 1; transform: scale(1.45); filter: blur(8px); }
+  50%  { opacity: 0.72; }
+  100% { opacity: 0; transform: scale(1); filter: blur(0); }
+}
+
 .err { color: var(--moonlight-soft); font-size: 0.9rem; max-width: 34ch; line-height: 1.6; opacity: 0.85; }
 
 .build-tag { position: absolute; bottom: max(2vh, env(safe-area-inset-bottom)); right: max(3vw, env(safe-area-inset-right)); font-family: ui-monospace, Menlo, monospace; font-size: 9px; letter-spacing: 0.1em; color: var(--moonlight); opacity: 0.3; }

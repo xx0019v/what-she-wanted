@@ -72,6 +72,11 @@ export function ImmersiveView({ lang, quality, reducedMotion, onExit }: Props) {
     <div className="stage" role="region" aria-label="Immersive forest">
       <canvas ref={canvasRef} className="world-canvas" />
 
+      {/* Continuous entry: a moonlight/fog bloom fills the screen, then opens
+          onto the forest — so arriving reads as passing through light, not a
+          cut. It also masks the world's first frames while they warm up. */}
+      {!reducedMotion && <div className="world-intro" aria-hidden="true" />}
+
       {/* Gyro / drag gate — the moment we can legitimately ask for motion access */}
       {!entered && (
         <div className="prompt-wrap" role="dialog" aria-modal="true" aria-label="How would you like to look around?">
