@@ -18,8 +18,14 @@ type Phase = 'loading' | 'start' | 'ar' | 'demo' | 'world';
 const AR_SCENE = 4;
 const TARGET_URL = `${import.meta.env.BASE_URL}targets/forest-page.mind`;
 
+// QA / preview deep-link: ?view=world|demo|ar jumps straight to a phase so the
+// 360° world and page layers can be reviewed without re-clicking the flow.
+const VIEW_PARAM = new URLSearchParams(location.search).get('view');
+const DEEP_LINK: Phase | null =
+  VIEW_PARAM === 'world' || VIEW_PARAM === 'demo' || VIEW_PARAM === 'ar' ? VIEW_PARAM : null;
+
 export function App() {
-  const [phase, setPhase] = useState<Phase>('loading');
+  const [phase, setPhase] = useState<Phase>(DEEP_LINK ?? 'loading');
   const [progress, setProgress] = useState(0);
   const initial = useMemo(() => loadPrefs(), []);
   const [lang, setLang] = useState<Lang>(initial.lang);
