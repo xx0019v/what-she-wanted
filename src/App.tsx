@@ -11,8 +11,9 @@ const inApp = isInAppBrowser();
 // Three.js / MindAR live in lazy chunks, off the initial load.
 const ARExperience = lazy(() => import('./components/ARExperience').then((m) => ({ default: m.ARExperience })));
 const ImmersiveView = lazy(() => import('./components/ImmersiveView').then((m) => ({ default: m.ImmersiveView })));
+const ARPreview = lazy(() => import('./components/ARPreview').then((m) => ({ default: m.ARPreview })));
 
-type Phase = 'loading' | 'start' | 'ar' | 'demo' | 'world';
+type Phase = 'loading' | 'start' | 'ar' | 'demo' | 'world' | 'arfx';
 
 // Today's focus: a rock-solid printed-page AR proof of concept for page 04.
 const AR_SCENE = 4;
@@ -22,7 +23,9 @@ const TARGET_URL = `${import.meta.env.BASE_URL}targets/forest-page.mind`;
 // 360° world and page layers can be reviewed without re-clicking the flow.
 const VIEW_PARAM = new URLSearchParams(location.search).get('view');
 const DEEP_LINK: Phase | null =
-  VIEW_PARAM === 'world' || VIEW_PARAM === 'demo' || VIEW_PARAM === 'ar' ? VIEW_PARAM : null;
+  VIEW_PARAM === 'world' || VIEW_PARAM === 'demo' || VIEW_PARAM === 'ar' || VIEW_PARAM === 'arfx'
+    ? VIEW_PARAM
+    : null;
 
 export function App() {
   const [phase, setPhase] = useState<Phase>(DEEP_LINK ?? 'loading');
@@ -125,6 +128,18 @@ export function App() {
       {phase === 'world' && (
         <Suspense fallback={<Loading progress={0.95} lang={lang} />}>
           <ImmersiveView lang={lang} quality={quality} reducedMotion={reduced} onExit={() => setPhase('ar')} />
+        </Suspense>
+      )}
+
+      {phase === 'arfx' && (
+        <Suspense fallback={<Loading progress={0.92} lang={lang} />}>
+          <ARPreview
+            lang={lang}
+            quality={quality}
+            reducedMotion={reduced}
+            onExit={() => setPhase('start')}
+            onEnterWorld={() => setPhase('world')}
+          />
         </Suspense>
       )}
 
