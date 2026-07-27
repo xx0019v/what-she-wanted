@@ -240,7 +240,8 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .ar-debug .row b[data-s='lost'] { color: var(--violet); }
 .ar-debug .row b[data-s='searching'] { color: var(--moonlight); }
 .ar-debug .ua { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ar-debug { max-height: 88vh; overflow-y: auto; }
+/* keep diagnostics reachable even over the camera-error veil (copy the log) */
+.ar-debug { z-index: 90; max-height: 88vh; overflow-y: auto; }
 .ar-debug .page-seen b { display: flex; gap: 7px; }
 .ar-debug .page-seen b span { opacity: 0.3; }
 .ar-debug .page-seen b span[data-on='true'] { opacity: 1; color: #9ae6b4; }
