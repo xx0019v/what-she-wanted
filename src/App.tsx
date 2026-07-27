@@ -5,6 +5,7 @@ import { AmbientBackdrop } from './components/AmbientBackdrop';
 import { SCENES } from './data/scenes';
 import { loadPrefs, savePrefs, prefersReducedMotion, type Lang, type Quality } from './lib/prefs';
 import { BUILD_ID, isInAppBrowser } from './lib/env';
+import type { ARPage } from './ar/pageFX';
 
 const inApp = isInAppBrowser();
 
@@ -26,6 +27,8 @@ const DEEP_LINK: Phase | null =
   VIEW_PARAM === 'world' || VIEW_PARAM === 'demo' || VIEW_PARAM === 'ar' || VIEW_PARAM === 'arfx'
     ? VIEW_PARAM
     : null;
+const PAGE_PARAM = Number(new URLSearchParams(location.search).get('page'));
+const FX_PAGE: ARPage = PAGE_PARAM === 5 || PAGE_PARAM === 11 || PAGE_PARAM === 17 ? PAGE_PARAM : 4;
 
 export function App() {
   const [phase, setPhase] = useState<Phase>(DEEP_LINK ?? 'loading');
@@ -137,6 +140,7 @@ export function App() {
             lang={lang}
             quality={quality}
             reducedMotion={reduced}
+            page={FX_PAGE}
             onExit={() => setPhase('start')}
             onEnterWorld={() => setPhase('world')}
           />

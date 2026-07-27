@@ -1,12 +1,14 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { buildAnchorFX, PAGE_ASPECT, type AnchorFX } from '../ar/anchorFX';
+import { PAGE_ASPECT } from '../ar/anchorFX';
+import { buildPageFX, AR_PAGE_IMAGE, type ARPage, type AnchorFX } from '../ar/pageFX';
 import type { Lang, Quality } from '../lib/prefs';
 
 interface Props {
   lang: Lang;
   quality: Quality;
   reducedMotion: boolean;
+  page: ARPage;
   onExit: () => void;
   onEnterWorld: () => void;
 }
@@ -14,7 +16,7 @@ interface Props {
 // A camera-free preview of the printed-page AR: the page lies on a surface and
 // the anchor FX rise off it. Slowly orbits so the depth (moon floating forward,
 // branches overhanging, fog crossing the edge) is legible without a phone.
-export function ARPreview({ lang, quality, reducedMotion, onExit, onEnterWorld }: Props) {
+export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterWorld }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -36,10 +38,10 @@ export function ARPreview({ lang, quality, reducedMotion, onExit, onEnterWorld }
 
     // the printed page
     const loader = new THREE.TextureLoader();
-    const pageTex = loader.load(`${import.meta.env.BASE_URL}pages/4.webp`, (t) => { t.colorSpace = THREE.SRGBColorSpace; });
+    const pageTex = loader.load(`${import.meta.env.BASE_URL}pages/${AR_PAGE_IMAGE[page]}.webp`, (t) => { t.colorSpace = THREE.SRGBColorSpace; });
     const pageMat = new THREE.MeshBasicMaterial({ map: pageTex });
-    const page = new THREE.Mesh(new THREE.PlaneGeometry(1, PAGE_ASPECT), pageMat);
-    scene.add(page);
+    const pagePlane = new THREE.Mesh(new THREE.PlaneGeometry(1, PAGE_ASPECT), pageMat);
+    scene.add(pagePlane);
     // a thin luminous edge so the paper's rectangle is legible as it tilts
     const edge = new THREE.LineSegments(
       new THREE.EdgesGeometry(new THREE.PlaneGeometry(1, PAGE_ASPECT)),
@@ -50,7 +52,7 @@ export function ARPreview({ lang, quality, reducedMotion, onExit, onEnterWorld }
 
     const group = new THREE.Group();
     scene.add(group);
-    const fx: AnchorFX = buildAnchorFX(group, { quality });
+    const fx: AnchorFX = buildPageFX(page, group, { quality });
 
     // camera orbit
     let yaw = 0.5, pitch = 0.32, dist = 1.7;
@@ -104,12 +106,12 @@ export function ARPreview({ lang, quality, reducedMotion, onExit, onEnterWorld }
       surfaceMat.dispose();
       (edge.geometry as THREE.BufferGeometry).dispose();
       (edge.material as THREE.Material).dispose();
-      page.geometry.dispose();
+      pagePlane.geometry.dispose();
       surface.geometry.dispose();
       renderer.dispose();
       scene.clear();
     };
-  }, [quality, reducedMotion]);
+  }, [quality, reducedMotion, page]);
 
   return (
     <div className="stage" role="region" aria-label="Spatial preview">
