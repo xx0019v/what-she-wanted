@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ForestAR, type ARStats, type ARStatus } from '../ar/forestAR';
-import type { ARPage } from '../ar/pageFX';
+import type { ARPage } from '../story/storyTypes';
+import type { StoryStatus } from '../story/storyTypes';
+import { StorySubtitle } from './StorySubtitle';
 import { AmbientBackdrop } from './AmbientBackdrop';
 import { BUILD_ID, BUILD_TIME, clearCacheAndReload, isInAppBrowser, isIOS, isSafari, isSecure } from '../lib/env';
 import type { Lang, Quality } from '../lib/prefs';
@@ -98,6 +100,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
   const [nonce, setNonce] = useState(0); // bump to restart
   const [qualityOverride, setQualityOverride] = useState<Quality | null>(null);
   const [seenPages, setSeenPages] = useState<number[]>([]);
+  const [story, setStory] = useState<StoryStatus | null>(null);
   const q = qualityOverride ?? quality;
 
   useEffect(() => {
@@ -125,6 +128,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
           }
         },
         onPage: (p) => { if (p != null) setSeenPages((prev) => (prev.includes(p) ? prev : [...prev, p])); },
+        onStory: (s) => setStory(s),
         onStats: (partial) => setStats((prev) => ({ ...prev, ...partial })),
       });
       arRef.current = ar;
@@ -232,10 +236,15 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
         </div>
       )}
 
-      {/* Found confirmation + enter-this-world after stable tracking */}
-      {!fatal && status === 'found' && (
+      {/* The story's own line, floating over the paper on its cue */}
+      {!fatal && <StorySubtitle cue={story?.subtitle ?? null} lang={lang} reducedMotion={reducedMotion} />}
+
+      {/* Found confirmation — only while the world is still waking */}
+      {!fatal && status === 'found' && story && (story.state === 'stabilizing' || story.state === 'awakening') && (
         <div className="ar-found" aria-hidden="true">
-          <span className="ar-found-mark">{lang === 'jp' ? '森が目を覚ました' : 'The forest is awake'}</span>
+          <span className="ar-found-mark">
+            {lang === 'jp' ? `PAGE ${story.page} · 目を覚ます` : `PAGE ${story.page} · awakening`}
+          </span>
         </div>
       )}
       {stableFound && !fatal && (
@@ -294,6 +303,9 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
           <div className="row"><span>STATUS</span><b data-s={status}>{fatal ? 'ERROR' : status.toUpperCase()}</b></div>
           <div className="row"><span>DETECTED PAGE</span><b data-s={stats.detectedPage ? 'found' : undefined}>{stats.detectedPage ? `p${stats.detectedPage}` : '—'}</b></div>
           <div className="row"><span>TARGET INDEX</span><b>{stats.targetIndex ?? '—'}</b></div>
+          <div className="row"><span>STORY STATE</span><b data-s={story?.state === 'playing' ? 'found' : undefined}>{story?.state?.toUpperCase() ?? '—'}</b></div>
+          <div className="row"><span>PHASE</span><b>{story?.phase ?? '—'}</b></div>
+          <div className="row"><span>ELAPSED</span><b>{story ? `${story.elapsed.toFixed(1)} / ${story.duration}s` : '—'}</b></div>
           <div className="row page-seen">
             <span>PAGES SEEN</span>
             <b>{pages.map((p) => <span key={p} data-on={seenPages.includes(p)}>p{p}</span>)}</b>

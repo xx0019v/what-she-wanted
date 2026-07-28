@@ -1,19 +1,24 @@
 // ────────────────────────────────────────────────────────────────
-// Forest AR (page 04) — anchored proof of concept.
-// MindAR detects the printed page and provides a tracked anchor group in the
-// page's own coordinate space. We attach procedural effects (ground fog, a few
-// fireflies, a faint moon glow, a little air around the girl) to that group, so
-// they sit ON the page and follow it as the page or camera moves. Because the
-// layers live at different depths, tilting the phone yields real 2.5D parallax.
+// Printed-page AR — recognition starts that page's STORY.
+//
+// MindAR detects a printed page and hands us a tracked anchor group in the
+// page's own coordinate space. Each page owns an anchor; when its page is
+// recognised the StoryRuntime mounts that page's scene into the anchor and
+// plays its timeline from zero (after a brief stabilise), pauses it when the
+// page leaves view, and resumes or restarts on return. Only one story is ever
+// mounted, so two pages can never animate at once.
 //
 // Anchor space (MindARThree): the target lies in the XY plane, width = 1
-// (x ∈ [-0.5, 0.5]), height = imageH/imageW (page 04 = 0.5625, y ∈ [-0.281, 0.281]),
-// +y up, +z toward the viewer. Effects use small positive z to float above paper.
-// Nothing opaque is placed over the page's printed text — all layers are additive.
+// (x ∈ [-0.5, 0.5]), height = imageH/imageW (0.5625, y ∈ [-0.281, 0.281]),
+// +y up, +z toward the viewer. Effects use positive z to leave the paper.
+// Nothing opaque is placed over the page's printed text — all layers additive.
 // ────────────────────────────────────────────────────────────────
 import * as THREE from 'three';
 import { MindARThree } from 'mind-ar/dist/mindar-image-three.prod.js';
-import { buildPageFX, type ARPage, type AnchorFX } from './pageFX';
+import type { ARPage } from '../story/storyTypes';
+import { StoryRuntime } from '../story/storyRuntime';
+import { storyForPage } from '../story/pageStories';
+import type { StoryStatus } from '../story/storyTypes';
 
 export type ARStatus = 'loading' | 'searching' | 'found' | 'lost';
 
@@ -43,6 +48,8 @@ export interface ForestAROptions {
   onStatus: (s: ARStatus) => void;
   /** Optional: which page's target was just found/lost. */
   onPage?: (page: ARPage | null) => void;
+  /** Story state / phase / subtitle for the UI and diagnostics. */
+  onStory?: (s: StoryStatus) => void;
   onStats: (s: Partial<ARStats>) => void;
 }
 
@@ -82,7 +89,9 @@ function classifyCameraError(e: any): string {
 
 export class ForestAR {
   private mindar: MindARThree | null = null;
-  private fxs: AnchorFX[] = [];
+  private runtime: StoryRuntime | null = null;
+  /** Anchor groups by page, so the runtime can mount a scene into the right one. */
+  private anchorGroups = new Map<ARPage, THREE.Group>();
   private trackedCount = 0;
   private clock = new THREE.Clock();
   private startTime = 0;
@@ -156,11 +165,18 @@ export class ForestAR {
       });
       this.mindar = mindar;
 
-      // One anchor per printed page in the target file. maxTrack:1 means only
-      // the page in view renders; each page shows its own story-specific FX.
+      // The story runtime owns which page's story is mounted and how far it has
+      // played. Recognition only tells it "this page is visible now".
+      this.runtime = new StoryRuntime({
+        quality: this.opts.quality,
+        reducedMotion: this.opts.reducedMotion,
+        onStatus: (s) => this.opts.onStory?.(s),
+      });
+
+      // One anchor per printed page in the target file (maxTrack:1 → one at a time).
       this.opts.pages.forEach((page, index) => {
         const anchor = mindar.addAnchor(index);
-        this.fxs.push(buildPageFX(page, anchor.group, { quality: this.opts.quality }));
+        this.anchorGroups.set(page, anchor.group);
 
         anchor.onTargetFound = () => {
           if (this.firstFound === null) this.firstFound = performance.now() - this.startTime;
@@ -168,6 +184,15 @@ export class ForestAR {
           this.everFound = true;
           this.trackedCount += 1;
           this.foundCount += 1;
+
+          // Mount (or resume) this page's story inside its own anchor group.
+          const story = storyForPage(page);
+          if (story && this.runtime) {
+            this.runtime.targetFound(story);
+            const g = this.runtime.sceneGroup;
+            if (g && g.parent !== anchor.group) anchor.group.add(g);
+          }
+
           this.opts.onPage?.(page);
           this.opts.onStatus('found');
           this.opts.onStats({
@@ -184,6 +209,8 @@ export class ForestAR {
           this.lostCount += 1;
           this.opts.onStats({ lostCount: this.lostCount });
           if (this.trackedCount === 0) {
+            // Hold the timeline and fade over the grace period rather than snap.
+            this.runtime?.targetLost();
             this.opts.onPage?.(null);
             this.opts.onStatus('lost');
             this.opts.onStats({ status: 'lost', detectedPage: null, targetIndex: null });
@@ -216,13 +243,14 @@ export class ForestAR {
       renderer.setAnimationLoop(() => {
         if (this.disposed) return;
         const dt = Math.min(this.clock.getDelta(), 0.05);
-        const t = this.clock.elapsedTime;
-        if (!this.opts.reducedMotion) for (const fx of this.fxs) fx.update(t, dt);
-        // fps (rolling ~0.5s)
+        // The story advances on its own clock, started at recognition.
+        this.runtime?.update(dt);
+        // fps (rolling ~0.5s) + live story readout for diagnostics
         this.frames += 1;
         this.fpsT += dt;
         if (this.fpsT >= 0.5) {
           this.opts.onStats({ fps: Math.round(this.frames / this.fpsT) });
+          this.runtime?.tickStatus();
           this.frames = 0;
           this.fpsT = 0;
         }
@@ -251,7 +279,8 @@ export class ForestAR {
     } catch {
       /* already stopped */
     }
-    this.fxs.forEach((f) => f.dispose());
-    this.fxs = [];
+    this.runtime?.dispose();
+    this.runtime = null;
+    this.anchorGroups.clear();
   }
 }

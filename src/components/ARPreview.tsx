@@ -1,7 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { PAGE_ASPECT } from '../ar/anchorFX';
-import { buildPageFX, AR_PAGE_IMAGE, type ARPage, type AnchorFX } from '../ar/pageFX';
+import { PAGE_ASPECT } from '../story/scenes';
+import { StoryRuntime } from '../story/storyRuntime';
+import { storyForPage } from '../story/pageStories';
+import type { StoryStatus } from '../story/storyTypes';
+import { StorySubtitle } from './StorySubtitle';
+import type { ARPage } from '../story/storyTypes';
 import type { Lang, Quality } from '../lib/prefs';
 
 interface Props {
@@ -18,6 +22,8 @@ interface Props {
 // branches overhanging, fog crossing the edge) is legible without a phone.
 export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterWorld }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const runtimeRef = useRef<StoryRuntime | null>(null);
+  const [story, setStory] = useState<StoryStatus | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current!;
@@ -38,7 +44,7 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
 
     // the printed page
     const loader = new THREE.TextureLoader();
-    const pageTex = loader.load(`${import.meta.env.BASE_URL}pages/${AR_PAGE_IMAGE[page]}.webp`, (t) => { t.colorSpace = THREE.SRGBColorSpace; });
+    const pageTex = loader.load(`${import.meta.env.BASE_URL}pages/${page}.webp`, (t) => { t.colorSpace = THREE.SRGBColorSpace; });
     const pageMat = new THREE.MeshBasicMaterial({ map: pageTex });
     const pagePlane = new THREE.Mesh(new THREE.PlaneGeometry(1, PAGE_ASPECT), pageMat);
     scene.add(pagePlane);
@@ -50,9 +56,16 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
     edge.position.z = 0.001;
     scene.add(edge);
 
-    const group = new THREE.Group();
-    scene.add(group);
-    const fx: AnchorFX = buildPageFX(page, group, { quality });
+    const anchor = new THREE.Group();
+    scene.add(anchor);
+    const runtime = new StoryRuntime({ quality, reducedMotion, onStatus: (s) => setStory(s) });
+    runtimeRef.current = runtime;
+    const story = storyForPage(page);
+    if (story) {
+      runtime.mount(story, true);
+      const g = runtime.sceneGroup;
+      if (g) anchor.add(g);
+    }
 
     // camera orbit
     const dist = 1.7;
@@ -80,17 +93,20 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
     window.addEventListener('resize', onResize);
 
     const clock = new THREE.Clock();
+    let lastTick = performance.now();
     let raf = 0;
     const loop = () => {
       raf = requestAnimationFrame(loop);
-      const dt = Math.min(clock.getDelta(), 0.05);
-      const t = clock.elapsedTime;
+      const now = performance.now();
+      const dt = Math.min((now - lastTick) / 1000, 0.2);
+      lastTick = now;
+      const t = clock.getElapsedTime();
       if (!dragging && !reducedMotion) targetYaw = 0.5 + Math.sin(t * 0.12) * 0.32; // gentle sway to reveal parallax
       yaw += (targetYaw - yaw) * 0.06;
       pitch += (targetPitch - pitch) * 0.06;
       camera.position.set(Math.sin(yaw) * Math.cos(pitch) * dist, Math.sin(pitch) * dist, Math.cos(yaw) * Math.cos(pitch) * dist);
       camera.lookAt(0, 0.02, 0.05);
-      if (!reducedMotion) fx.update(t, dt);
+      runtime.update(dt);
       renderer.render(scene, camera);
     };
     raf = requestAnimationFrame(loop);
@@ -101,7 +117,8 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('resize', onResize);
-      fx.dispose();
+      runtime.dispose();
+      runtimeRef.current = null;
       pageTex.dispose();
       pageMat.dispose();
       surfaceMat.dispose();
@@ -116,7 +133,10 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
 
   return (
     <div className="stage" role="region" aria-label="Spatial preview">
-      <canvas ref={canvasRef} className="world-canvas" />
+      {/* keyed so a page/quality change gets a fresh canvas (disposed WebGL
+          contexts cannot be re-acquired on the same element) */}
+      <canvas key={`${page}-${quality}`} ref={canvasRef} className="world-canvas" />
+      <StorySubtitle cue={story?.subtitle ?? null} lang={lang} reducedMotion={reducedMotion} />
       <div className="ar-note" style={{ bottom: 'auto', top: 'max(3vh, env(safe-area-inset-top))' }}>
         {lang === 'jp' ? '立体プレビュー（カメラなし）· ドラッグで見る' : 'Spatial preview (no camera) · drag to look'}
       </div>

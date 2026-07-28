@@ -5,7 +5,7 @@ import { AmbientBackdrop } from './components/AmbientBackdrop';
 import { SCENES } from './data/scenes';
 import { loadPrefs, savePrefs, prefersReducedMotion, type Lang, type Quality } from './lib/prefs';
 import { BUILD_ID, isInAppBrowser } from './lib/env';
-import type { ARPage } from './ar/pageFX';
+import type { ARPage } from './story/storyTypes';
 
 const inApp = isInAppBrowser();
 
@@ -13,8 +13,9 @@ const inApp = isInAppBrowser();
 const ARExperience = lazy(() => import('./components/ARExperience').then((m) => ({ default: m.ARExperience })));
 const ImmersiveView = lazy(() => import('./components/ImmersiveView').then((m) => ({ default: m.ImmersiveView })));
 const ARPreview = lazy(() => import('./components/ARPreview').then((m) => ({ default: m.ARPreview })));
+const StoryTest = lazy(() => import('./components/StoryTest').then((m) => ({ default: m.StoryTest })));
 
-type Phase = 'loading' | 'start' | 'ar' | 'demo' | 'world' | 'arfx';
+type Phase = 'loading' | 'start' | 'ar' | 'demo' | 'world' | 'arfx' | 'storytest';
 
 // Printed-page AR. The compiled target file carries these pages in this exact
 // index order (see scripts/compile-targets.mjs); each shows its own FX.
@@ -26,7 +27,7 @@ const TARGET_URL = `${import.meta.env.BASE_URL}targets/pages.mind`;
 // 360° world and page layers can be reviewed without re-clicking the flow.
 const VIEW_PARAM = new URLSearchParams(location.search).get('view');
 const DEEP_LINK: Phase | null =
-  VIEW_PARAM === 'world' || VIEW_PARAM === 'demo' || VIEW_PARAM === 'ar' || VIEW_PARAM === 'arfx'
+  VIEW_PARAM === 'world' || VIEW_PARAM === 'demo' || VIEW_PARAM === 'ar' || VIEW_PARAM === 'arfx' || VIEW_PARAM === 'storytest'
     ? VIEW_PARAM
     : null;
 const PAGE_PARAM = Number(new URLSearchParams(location.search).get('page'));
@@ -134,6 +135,18 @@ export function App() {
       {phase === 'world' && (
         <Suspense fallback={<Loading progress={0.95} lang={lang} />}>
           <ImmersiveView lang={lang} quality={quality} reducedMotion={reduced} onExit={() => setPhase('ar')} />
+        </Suspense>
+      )}
+
+      {phase === 'storytest' && (
+        <Suspense fallback={<Loading progress={0.92} lang={lang} />}>
+          <StoryTest
+            lang={lang}
+            quality={quality}
+            reducedMotion={reduced}
+            page={FX_PAGE}
+            onExit={() => setPhase('start')}
+          />
         </Suspense>
       )}
 

@@ -70,7 +70,9 @@ export function ImmersiveView({ lang, quality, reducedMotion, onExit }: Props) {
 
   return (
     <div className="stage" role="region" aria-label="Immersive forest">
-      <canvas ref={canvasRef} className="world-canvas" />
+      {/* keyed so a quality change gets a fresh canvas (a disposed WebGL context
+          cannot be re-acquired on the same element) */}
+      <canvas key={quality} ref={canvasRef} className="world-canvas" />
 
       {/* Continuous entry: a moonlight/fog bloom fills the screen, then opens
           onto the forest — so arriving reads as passing through light, not a

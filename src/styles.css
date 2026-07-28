@@ -240,6 +240,57 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .ar-debug .row b[data-s='lost'] { color: var(--violet); }
 .ar-debug .row b[data-s='searching'] { color: var(--moonlight); }
 .ar-debug .ua { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ── Story line (AR narrative subtitle) ────────────────────
+   A line of the story hanging in the air over the paper. No card, no panel —
+   only the words, legible against bright art via a feathered shadow. */
+.story-line {
+  position: absolute;
+  z-index: 44;
+  max-width: min(30ch, 68vw);
+  pointer-events: none;
+  font-family: var(--serif);
+  font-size: clamp(1rem, 2.1vw + 0.5rem, 1.7rem);
+  line-height: 1.6;
+  letter-spacing: 0.015em;
+  color: var(--mist);
+  text-shadow:
+    0 1px 2px rgba(4, 8, 20, 0.95),
+    0 0 16px rgba(4, 8, 20, 0.75),
+    0 0 34px rgba(4, 8, 20, 0.55);
+  opacity: 0;
+  animation: storyLineIn 1.5s var(--ease) forwards;
+}
+.story-line[data-lang='jp'] {
+  font-family: var(--jp);
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  line-height: 1.9;
+  font-size: clamp(0.95rem, 1.8vw + 0.5rem, 1.4rem);
+}
+.story-line::before {
+  content: '';
+  position: absolute;
+  inset: -0.8em -1.2em;
+  z-index: -1;
+  background: radial-gradient(120% 100% at 30% 50%, rgba(6, 9, 16, 0.5), rgba(6, 9, 16, 0.18) 58%, rgba(6, 9, 16, 0) 80%);
+  filter: blur(8px);
+}
+.story-line.leaving { animation: storyLineOut 0.9s var(--ease) forwards; }
+@keyframes storyLineIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes storyLineOut { from { opacity: 1; } to { opacity: 0; transform: translateY(-4px); } }
+
+.story-line.lower-left { left: max(6vw, env(safe-area-inset-left)); bottom: max(16vh, calc(env(safe-area-inset-bottom) + 90px)); }
+.story-line.upper-left { left: max(6vw, env(safe-area-inset-left)); top: max(12vh, calc(env(safe-area-inset-top) + 60px)); }
+.story-line.bottom { left: 50%; transform: translateX(-50%); bottom: max(16vh, calc(env(safe-area-inset-bottom) + 90px)); text-align: center; }
+.story-line.bottom.leaving, .story-line.bottom { --tx: -50%; }
+.story-line.top { left: 50%; transform: translateX(-50%); top: max(12vh, calc(env(safe-area-inset-top) + 60px)); text-align: center; }
+@keyframes storyLineInCenter { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
+.story-line.bottom, .story-line.top { animation-name: storyLineInCenter; }
+
+@media (prefers-reduced-motion: reduce) {
+  .story-line { animation-duration: 0.01ms !important; opacity: 1; }
+}
+
 /* keep diagnostics reachable even over the camera-error veil (copy the log) */
 .ar-debug { z-index: 90; max-height: 88vh; overflow-y: auto; }
 .ar-debug .page-seen b { display: flex; gap: 7px; }
