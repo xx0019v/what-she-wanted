@@ -3,7 +3,7 @@
 //   • navigations/documents → NETWORK-FIRST (so a new build is never masked by cache)
 //   • hashed assets/images   → CACHE-FIRST (fast, immutable filenames)
 // Bump CACHE to force a full refresh.
-const CACHE = 'wsw-v3';
+const CACHE = 'wsw-v4';
 const CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
