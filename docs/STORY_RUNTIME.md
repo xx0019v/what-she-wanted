@@ -6,7 +6,7 @@ ordered phases, cues its own subtitles, holds when the page leaves view, and
 resumes or restarts when it returns.
 
 **Live:** https://xx0019v.github.io/what-she-wanted/
-**Story harness:** `?view=storytest&page=4` (also `5`, `11`, `17`)
+**Story harness:** `?view=storytest&page=N` — every page 1–17
 
 ---
 
@@ -48,22 +48,41 @@ SEARCHING → (target found) → STABILIZING (0.35 s steady)
 
 ## The four stories
 
-| page | index | theme | phases |
-|---|---|---|---|
-| **p4** Into the Forest | 0 | THE FOREST AWAKENS AROUND HER | still → moon-breath 1.0 → ground-mist 2.0 → fireflies 3.0 → depth 4.0 → branches 5.5 → overflow 6.5 → witch-hint 8.0 (once) |
-| **p5** First Meeting | 1 | THE SPACE BETWEEN THEM BECOMES A PROMISE | hush 0.0 → blue-side 1.5 → violet-side 2.5 → memory-gather 3.5 → staff-light 5.5 → tension 7.0 |
-| **p11** Violet Moon | 2 | THE MOON REMEMBERS WHAT SHE FORGOT | blue-moon 0.0 → violet-seep 2.0 → propagate 4.0 → memory-rings 6.0 → **stillness 9.0** |
-| **p17** The Cycle | 3 | SHE BECAME THE ONE WHO WAS WAITING | departure 0.0 → moon-returns 3.0 → watcher-violet 5.0 → opening-mist 7.0 → continuation 10.0 |
+All 17 pages have a story; the target index equals `page - 1`.
+
+| page | theme |
+|---|---|
+| 1 Cover | THE STORY IS ALREADY WAITING |
+| 2 Nightmare | THE DARK IS STILL IN THE ROOM |
+| 3 The Door | THE FOREST IS ALREADY BREATHING THROUGH THE DOOR |
+| 4 Into the Forest | THE FOREST AWAKENS AROUND HER |
+| 5 First Meeting | THE SPACE BETWEEN THEM BECOMES A PROMISE |
+| 6 The Promise | A CHILD PROMISES SOMETHING SHE CANNOT MEASURE |
+| 7 The Witch Vanishes | THE BARGAIN IS KEPT. SHE IS ALONE |
+| 8 Emptiness | NOTHING CAME TO FILL THE SPACE |
+| 9 Second Meeting | THE ONE SHE PAID IS BACK |
+| 10 The Question | THE QUESTION HANGS IN THE GAP BETWEEN THEM |
+| 11 Violet Moon | THE MOON REMEMBERS WHAT SHE FORGOT |
+| 12 Memories | EVERYTHING SHE ERASED IS STANDING AROUND HER |
+| 13 Strength | WHAT SHE THREW AWAY WAS HER STRENGTH |
+| 14 Overcome | THE ONLY WAY THROUGH IS THROUGH |
+| 15 Release | GRATITUDE IS WHAT BREAKS IT |
+| 16 Her Own Dream | SHE IS THE LIGHT NOW |
+| 17 The Cycle | SHE BECAME THE ONE WHO WAS WAITING |
 
 Every phase carries a `meaning` string in `pageStories.ts` — the story reason it
 exists. Motion without a reason was removed.
 
 ## Files
 ```
+src/story/sceneKit.ts      the procedural object library (moon, tree fields, canopy,
+                           mist, fireflies, motes, spark streams, ribbons, auras,
+                           figures, crowds, light threads, rings, washes, shadows,
+                           stars, tendrils) — all phase-driven
 src/story/storyTypes.ts    state machine, PageStory / StoryPhase / SubtitleCue, ARPage
 src/story/storyRuntime.ts  the engine (mount, phases, cues, lost/resume, dispose)
-src/story/scenes.ts        the four phase-driven procedural stages
-src/story/pageStories.ts   the four timelines + subtitle cues
+src/story/scenes.ts        17 distinct stages composed from the kit
+src/story/pageStories.ts   17 timelines + EN/JP subtitle cues
 src/components/StorySubtitle.tsx  the floating story line
 src/components/StoryTest.tsx      ?view=storytest harness
 src/ar/forestAR.ts         MindAR recognition → runtime (one anchor per page)
@@ -71,8 +90,13 @@ src/ar/forestAR.ts         MindAR recognition → runtime (one anchor per page)
 The old self-looping `src/ar/pageFX.ts` and `src/ar/anchorFX.ts` were deleted;
 `?view=arfx` now runs on the same runtime, so there is a single source of truth.
 
+## Targets
+`public/targets/pages.mind` is compiled from **all 17 pages** (indices 0–16, 8.1 MB)
+by `scripts/compile-targets.mjs`. It is fetched only when AR starts and is not
+pre-cached by the service worker, so the landing page load is unaffected.
+
 ## Verified in-browser (desktop + mobile 375×812)
-- p4 → index 0, p5 → index 1, p11 → index 2, p17 → index 3 (correct page every time)
+- page N → index N-1 (spot-checked p2/p12/p13/p16 live; correct page every time)
 - phases advance in order; `CURRENT PHASE` / `ELAPSED` track the timeline
 - subtitle cues appear on time and leave (`@2.6s`, `@8.4s`, …)
 - `SIM LOST` → `PAUSED`, elapsed **held**, visuals fade, subtitle clears
