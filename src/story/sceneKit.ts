@@ -330,9 +330,11 @@ export function addTreeField(
     for (let i = 0; i < n; i++) {
       const h = (0.18 + depth * 0.34) * rnd(0.75, 1.35);
       const w = h * rnd(0.42, 0.62);
-      // push trees toward the sides so the girl at centre stays clear
+      // The forest FRAMES the page; it must not bury the artwork. Trees start at
+      // the paper's edge (|x| ≥ 0.42) and continue outward into the room, so the
+      // printed scene stays fully readable between them.
       const side = i % 2 === 0 ? -1 : 1;
-      const x = side * rnd(0.12, spread * 0.5);
+      const x = side * rnd(0.42, Math.max(0.6, spread * 0.62));
       const y = (o.yBase ?? -HALF_H) + h * 0.5 - 0.02;
       base[i * 4] = x; base[i * 4 + 1] = y; base[i * 4 + 2] = w; base[i * 4 + 3] = h;
     }
@@ -385,8 +387,10 @@ export function addCanopy(
     const w = rnd(0.6, 0.85), h = w * 0.55;
     const mat = b.M(new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false, color: o.color ?? 0x0a1020 }));
     const m = new THREE.Mesh(b.G(new THREE.PlaneGeometry(w * side, h)), mat);
-    const x = side * rnd(0.34, 0.52);
-    const y = HALF_H + rnd(0.16, 0.28);
+    // hung above the paper's top edge and out toward the corners: they frame the
+    // view from above without crossing the printed art
+    const x = side * rnd(0.42, 0.62);
+    const y = HALF_H + rnd(0.18, 0.3);
     const z = 0.24 + i * 0.05;
     const rot = side * rnd(0.24, 0.42);
     m.position.set(x, y, z); m.rotation.z = rot;
