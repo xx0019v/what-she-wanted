@@ -8,8 +8,8 @@
 // ────────────────────────────────────────────────────────────────
 import type * as THREE from 'three';
 
-/** The printed pages that currently have stories + compiled targets. */
-export type ARPage = 4 | 5 | 11 | 17;
+/** Every printed page now has a story and a compiled target. */
+export type ARPage = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
 
 /** Where the runtime is in the recognition → story lifecycle. */
 export type StoryState =

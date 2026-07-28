@@ -28,6 +28,12 @@ export class StoryRuntime {
   private scene: StoryScene | null = null;
   private state: StoryState = 'idle';
   private elapsed = 0;
+  /**
+   * A second clock that drives the scenes' breathing. It runs slower while the
+   * reserved `stillness` channel is up, so a story can genuinely hold its breath
+   * without rewinding the timeline that phases are measured against.
+   */
+  private motionTime = 0;
   /** Seconds the target has been continuously seen while stabilizing. */
   private steady = 0;
   /** Seconds since the page left view (drives the grace fade). */
@@ -232,9 +238,12 @@ export class StoryRuntime {
       this.emit();
     }
 
-    // reduced motion: hold everything at its settled level, no breathing
+    // The scenes breathe on the motion clock, which the `stillness` channel slows.
+    const calm = 1 - (this.levels['stillness'] ?? 0) * 0.85;
+    if (!this.opts.reducedMotion) this.motionTime += step * calm;
+
     const master = this.visible;
-    this.scene.apply(this.elapsed, this.opts.reducedMotion ? 0 : step, this.levels, master);
+    this.scene.apply(this.motionTime, this.opts.reducedMotion ? 0 : step, this.levels, master);
   }
 
   private lastEmitted = '';

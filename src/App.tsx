@@ -20,7 +20,8 @@ type Phase = 'loading' | 'start' | 'ar' | 'demo' | 'world' | 'arfx' | 'storytest
 // Printed-page AR. The compiled target file carries these pages in this exact
 // index order (see scripts/compile-targets.mjs); each shows its own FX.
 const AR_SCENE = 4;
-const AR_PAGES: ARPage[] = [4, 5, 11, 17];
+// index order inside pages.mind == this array's order (see scripts/compile-targets.mjs)
+const AR_PAGES: ARPage[] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
 const TARGET_URL = `${import.meta.env.BASE_URL}targets/pages.mind`;
 
 // QA / preview deep-link: ?view=world|demo|ar jumps straight to a phase so the
@@ -31,7 +32,8 @@ const DEEP_LINK: Phase | null =
     ? VIEW_PARAM
     : null;
 const PAGE_PARAM = Number(new URLSearchParams(location.search).get('page'));
-const FX_PAGE: ARPage = PAGE_PARAM === 5 || PAGE_PARAM === 11 || PAGE_PARAM === 17 ? PAGE_PARAM : 4;
+const FX_PAGE: ARPage =
+  Number.isInteger(PAGE_PARAM) && PAGE_PARAM >= 1 && PAGE_PARAM <= 17 ? (PAGE_PARAM as ARPage) : 4;
 
 export function App() {
   const [phase, setPhase] = useState<Phase>(DEEP_LINK ?? 'loading');
