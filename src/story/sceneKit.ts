@@ -803,3 +803,114 @@ export function composeScene(group: THREE.Group, bag: Bag, layers: Layer[]) {
     dispose: () => bag.dispose(group),
   };
 }
+
+/** A blade-of-grass silhouette, drawn once and instanced across the ground. */
+function grassTex(b: Bag): THREE.Texture {
+  const c = document.createElement('canvas');
+  c.width = 32; c.height = 64;
+  const g = c.getContext('2d')!;
+  g.fillStyle = '#000';
+  for (let i = 0; i < 5; i++) {
+    const x0 = 4 + i * 6 + rnd(-1.5, 1.5);
+    const h = rnd(30, 60);
+    const bend = rnd(-7, 7);
+    g.beginPath();
+    g.moveTo(x0, 64);
+    g.quadraticCurveTo(x0 + bend * 0.5, 64 - h * 0.55, x0 + bend, 64 - h);
+    g.quadraticCurveTo(x0 + bend * 0.5 + 1.6, 64 - h * 0.55, x0 + 1.8, 64);
+    g.closePath(); g.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.needsUpdate = true;
+  return b.T(t);
+}
+
+/**
+ * The ground as a living surface rather than a dark plane.
+ *
+ * Instanced grass tufts stand up off the paper at several depths and bend in a
+ * travelling wind. They also part around a live point — her feet — so that when
+ * she steps the ground answers, and they take on the story's colour when a
+ * `tintChannel` rises, so the moon turning violet reaches all the way down here.
+ */
+export function addGround(
+  b: Bag, group: THREE.Group,
+  o: {
+    channel: string; quality: Quality;
+    /** live point the grass parts around (her feet) */
+    partAround?: () => THREE.Vector3;
+    /** how strongly it parts, 0..1 */
+    partChannel?: string;
+    /** colour bleed from the story (violet moon, magic) */
+    tintChannel?: string;
+    tint?: number;
+    rows?: number; width?: number; yBase?: number;
+  },
+): Layer {
+  const tex = grassTex(b);
+  const rows = o.rows ?? q(o.quality, 4, 2);
+  const width = o.width ?? 1.5;
+  const base = o.yBase ?? -HALF_H;
+  const clumps: Array<{ mesh: THREE.InstancedMesh; data: Float32Array; n: number; z: number; mat: THREE.MeshBasicMaterial }> = [];
+  const m4 = new THREE.Matrix4();
+  const qt = new THREE.Quaternion();
+  const pv = new THREE.Vector3();
+  const sv = new THREE.Vector3();
+  const eu = new THREE.Euler();
+
+  for (let r = 0; r < rows; r++) {
+    const depth = r / Math.max(1, rows - 1);
+    const n = q(o.quality, 22 - r * 3, 12 - r * 2);
+    const z = 0.006 + depth * 0.05;
+    const geo = b.G(new THREE.PlaneGeometry(1, 1));
+    const mat = b.M(new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, opacity: 0, depthWrite: false,
+      color: new THREE.Color().setHSL(0.32, 0.3, 0.1 + depth * 0.05),
+    }));
+    const inst = new THREE.InstancedMesh(geo, mat, n);
+    const data = new Float32Array(n * 4); // x, y, w, h
+    for (let i = 0; i < n; i++) {
+      const h = (0.035 + depth * 0.05) * rnd(0.7, 1.45);
+      const w = h * rnd(1.1, 1.8);
+      const x = rnd(-width / 2, width / 2);
+      const y = base + depth * 0.05 + h * 0.5 - 0.008;
+      data[i * 4] = x; data[i * 4 + 1] = y; data[i * 4 + 2] = w; data[i * 4 + 3] = h;
+    }
+    inst.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    group.add(inst);
+    clumps.push({ mesh: inst, data, n, z, mat });
+  }
+
+  return {
+    update(elapsed, levels, master) {
+      const on = L(levels, o.channel);
+      const part = L(levels, o.partChannel);
+      const tint = L(levels, o.tintChannel);
+      const at = o.partAround?.();
+      for (let ci = 0; ci < clumps.length; ci++) {
+        const c = clumps[ci];
+        c.mat.opacity = master * on * (0.55 - ci * 0.06);
+        if (tint > 0) c.mat.color.setHSL(0.32 - tint * 0.55, 0.3 + tint * 0.25, 0.1 + ci * 0.02 + tint * 0.06);
+        for (let i = 0; i < c.n; i++) {
+          const x = c.data[i * 4], y = c.data[i * 4 + 1];
+          const w = c.data[i * 4 + 2], h = c.data[i * 4 + 3] * (0.3 + on * 0.7);
+          // a wind that travels across the ground rather than everything waving together
+          let lean = Math.sin(elapsed * 0.8 + x * 6 + ci) * 0.09;
+          // and grass gets out of her way
+          if (at && part > 0) {
+            const d = Math.hypot(x - at.x, y - at.y);
+            const push = Math.max(0, 1 - d / 0.16) * part;
+            lean += Math.sign(x - at.x || 1) * push * 0.5;
+          }
+          eu.set(0, 0, lean);
+          qt.setFromEuler(eu);
+          pv.set(x, y - c.data[i * 4 + 3] * 0.5 + h * 0.5, c.z);
+          sv.set(w, h, 1);
+          m4.compose(pv, qt, sv);
+          c.mesh.setMatrixAt(i, m4);
+        }
+        c.mesh.instanceMatrix.needsUpdate = true;
+      }
+    },
+  };
+}

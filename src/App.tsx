@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Loading } from './components/Loading';
+import { RotateGate } from './components/RotateGate';
 import { PageStage } from './components/PageStage';
 import { AmbientBackdrop } from './components/AmbientBackdrop';
 import { SCENES } from './data/scenes';
@@ -177,6 +178,10 @@ export function App() {
           )}
         </div>
       )}
+
+      {/* Mounted last so it covers every phase: the composition needs a wide
+          frame, so on a phone the work waits until the device is turned. */}
+      <RotateGate lang={lang} reducedMotion={reduced} />
     </>
   );
 }

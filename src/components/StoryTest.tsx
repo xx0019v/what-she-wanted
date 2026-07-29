@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { StoryRuntime } from '../story/storyRuntime';
+import { loadRigs } from '../story/rig';
 import { PAGE_STORIES, storyForPage } from '../story/pageStories';
 import { PAGE_ASPECT } from '../story/scenes';
 import type { StoryStatus } from '../story/storyTypes';
@@ -58,16 +59,24 @@ export function StoryTest({ lang, quality, reducedMotion, page, onExit }: Props)
       onStatus: (s) => setStatus(s),
     });
     runtimeRef.current = runtime;
-    const story = storyForPage(current);
-    if (story) {
-      runtime.mount(story, true);
-      const g = runtime.sceneGroup;
-      if (g) anchor.add(g);
-    }
+    // the character rigs are cut from the page art; wait for their metadata so
+    // the figures are part of the scene from its first frame
+    let cancelled = false;
+    loadRigs().then(() => {
+      if (cancelled) return;
+      const story = storyForPage(current);
+      if (story) {
+        runtime.mount(story, true);
+        const g = runtime.sceneGroup;
+        if (g) anchor.add(g);
+      }
+    });
 
     let yaw = 0.42, pitch = 0.3;
     let targetYaw = 0.42, targetPitch = 0.3;
-    const dist = 1.75;
+    // ?cam=<distance> — pull in close to judge the character performance
+    const camParam = Number(new URLSearchParams(location.search).get('cam'));
+    const dist = Number.isFinite(camParam) && camParam > 0.3 ? camParam : 1.75;
     let dragging = false;
     let last = { x: 0, y: 0 };
     const onDown = (e: PointerEvent) => { dragging = true; last = { x: e.clientX, y: e.clientY }; };
@@ -131,6 +140,7 @@ export function StoryTest({ lang, quality, reducedMotion, page, onExit }: Props)
     }, 100);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       clearInterval(keepAlive);
       canvas.removeEventListener('pointerdown', onDown);

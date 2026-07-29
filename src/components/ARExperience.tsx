@@ -3,6 +3,7 @@ import { ForestAR, type ARStats, type ARStatus } from '../ar/forestAR';
 import type { ARPage } from '../story/storyTypes';
 import type { StoryStatus } from '../story/storyTypes';
 import { StorySubtitle } from './StorySubtitle';
+import { loadRigs } from '../story/rig';
 import { AmbientBackdrop } from './AmbientBackdrop';
 import { BUILD_ID, BUILD_TIME, clearCacheAndReload, isInAppBrowser, isIOS, isSafari, isSecure } from '../lib/env';
 import type { Lang, Quality } from '../lib/prefs';
@@ -112,6 +113,7 @@ export function ARExperience({ lang, quality, reducedMotion, targetUrl, pages, o
     let stableTimer = 0;
 
     (async () => {
+      await loadRigs();
       ar = new ForestAR({
         container: containerRef.current!,
         targetUrl,

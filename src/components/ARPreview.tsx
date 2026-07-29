@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { PAGE_ASPECT } from '../story/scenes';
 import { StoryRuntime } from '../story/storyRuntime';
+import { loadRigs } from '../story/rig';
 import { storyForPage } from '../story/pageStories';
 import type { StoryStatus } from '../story/storyTypes';
 import { StorySubtitle } from './StorySubtitle';
@@ -60,12 +61,16 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
     scene.add(anchor);
     const runtime = new StoryRuntime({ quality, reducedMotion, onStatus: (s) => setStory(s) });
     runtimeRef.current = runtime;
-    const story = storyForPage(page);
-    if (story) {
-      runtime.mount(story, true);
-      const g = runtime.sceneGroup;
-      if (g) anchor.add(g);
-    }
+    let cancelled = false;
+    loadRigs().then(() => {
+      if (cancelled) return;
+      const story = storyForPage(page);
+      if (story) {
+        runtime.mount(story, true);
+        const g = runtime.sceneGroup;
+        if (g) anchor.add(g);
+      }
+    });
 
     // camera orbit
     const dist = 1.7;
@@ -112,6 +117,7 @@ export function ARPreview({ lang, quality, reducedMotion, page, onExit, onEnterW
     raf = requestAnimationFrame(loop);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(raf);
       canvas.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);

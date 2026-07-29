@@ -12,10 +12,11 @@ import {
   Bag, HALF_H, PAGE_ASPECT, composeScene,
   addMoon, addShaft, addTreeField, addCanopy, addMist, addFireflies, addMotes,
   addSparkStream, addRibbons, addAura, addCrowd, addLightThreads,
-  addRings, addWash, addForwardShadow, addStars, addTendrils,
+  addRings, addWash, addForwardShadow, addStars, addTendrils, addGround,
   type Layer, type Quality,
 } from './sceneKit';
 import { addCharacter } from './characters';
+import { addRig } from './rig';
 import { addTransfer, addWavefront, addGathering, addLink, addAttention } from './magic';
 
 export { PAGE_ASPECT } from './sceneKit';
@@ -77,16 +78,26 @@ export function createForestScene({ quality }: Opts): StoryScene {
 
   // She is the subject of this page, so she is built first and everything else
   // is staged around her.
-  const girl = addCharacter(b, g, {
-    kind: 'girl', x: -0.015, yFeet: -HALF_H + 0.03, z: 0.075, h: 0.26, facing: 1,
-    presence: 'sheIsHere', breathe: 'sheIsHere', lean: 'sheSteps',
-    sway: 'forestBreathes', glow: 'herResolve',
+  // The printed girl herself, cut into parts and hung on pivots: when she leans
+  // and steps, it is HER painted pixels that move.
+  const girl = addRig(b, g, {
+    page: 4, character: 'girl', facing: 1,
+    perf: {
+      presence: 'sheIsHere', breathe: 'sheIsHere', lean: 'sheSteps',
+      sway: 'forestBreathes', step: 'sheSteps', look: 'watched', glow: 'herResolve',
+    },
   });
 
   const layers: Layer[] = [
     addMoon(b, g, { pos: V3(0.02, PAGE_ASPECT * 0.36, 0.16), size: 0.16, channel: 'moonBreath' }),
     addShaft(b, g, { x: 0.02, y: PAGE_ASPECT * 0.03, channel: 'moonBreath', w: 0.3 }),
     addMist(b, g, { channel: 'forestBreathes', overflowChannel: 'overflow', quality, layers: 5, width: 1.0 }),
+    // the ground is a surface she walks on, not a backdrop: it stands up off the
+    // paper and parts around her feet as she steps
+    addGround(b, g, {
+      channel: 'forestBreathes', quality,
+      partAround: () => girl.anchors.feet, partChannel: 'sheSteps',
+    }),
     addTreeField(b, g, { channel: 'depth', quality, bands: 4, spread: 1.6 }),
     addCanopy(b, g, { channel: 'branches', count: 3 }),
     // the forest's lights leave their places and come to her: it noticed her
@@ -110,16 +121,22 @@ export function createForestScene({ quality }: Opts): StoryScene {
 export function createContractScene({ quality }: Opts): StoryScene {
   const g = new THREE.Group(); const b = new Bag();
 
-  const girl = addCharacter(b, g, {
-    kind: 'girl', x: -0.145, yFeet: -HALF_H + 0.04, z: 0.07, h: 0.2, facing: 1,
-    presence: 'sheStandsThere', breathe: 'sheStandsThere', lean: 'sheAsks',
-    sway: 'theAir', glow: 'herWish', drain: 'itIsTaken',
+  // Both printed figures, rigged: she looks up and leans in to ask; the witch
+  // lifts her staff and reaches; her light drains as the memory is taken.
+  const girl = addRig(b, g, {
+    page: 5, character: 'girl', facing: 1,
+    perf: {
+      presence: 'sheStandsThere', breathe: 'sheStandsThere', lean: 'sheAsks',
+      sway: 'theAir', look: 'sheStandsThere', glow: 'herWish', drain: 'itIsTaken',
+    },
   });
-  const witch = addCharacter(b, g, {
-    kind: 'witch', x: 0.2, yFeet: -HALF_H + 0.02, z: 0.07, h: 0.34, facing: -1,
-    presence: 'sheIsListening', breathe: 'sheIsListening', reach: 'sheAccepts',
-    sway: 'theAir', glow: 'sheAccepts',
-    rim: 0xb084e0, rimHue: 'rgba(176,132,224,0.9)',
+  const witch = addRig(b, g, {
+    page: 5, character: 'witch', facing: -1,
+    perf: {
+      presence: 'sheIsListening', breathe: 'sheIsListening', sway: 'theAir',
+      reach: 'sheAccepts', glow: 'sheAccepts',
+    },
+    rimColor: 0xb084e0, rimHue: 'rgba(176,132,224,0.9)',
   });
   const midpoint = () => new THREE.Vector3(
     (girl.anchors.chest.x + witch.anchors.hand.x) / 2,
@@ -131,6 +148,11 @@ export function createContractScene({ quality }: Opts): StoryScene {
     addMoon(b, g, { pos: V3(0.02, PAGE_ASPECT * 0.34, 0.15), size: 0.12, channel: 'theHush' }),
     addTreeField(b, g, { channel: 'theHush', quality, bands: 2, color: 0x101c2c, spread: 1.4 }),
     addMist(b, g, { channel: 'theAir', quality, layers: 4, width: 1.0 }),
+    addGround(b, g, {
+      channel: 'theAir', quality,
+      partAround: () => girl.anchors.feet, partChannel: 'sheAsks',
+      tintChannel: 'itIsTaken',
+    }),
     girl,
     witch,
     // the staff answers before she does
@@ -270,6 +292,8 @@ export function createVioletMoonScene({ quality }: Opts): StoryScene {
     }),
     addWash(b, g, { channel: 'propagate', pos: V3(0, PAGE_ASPECT * 0.06, 0.03), hue: 'rgba(150,110,210,0.7)', color: 0x9670d2, max: 0.55, strength: 0.13 }),
     addMotes(b, g, { channel: 'propagate', quality, n: 34 }),
+    // the change does not stop at the horizon: it reaches the grass at our feet
+    addGround(b, g, { channel: 'blueMoon', quality, tintChannel: 'propagate' }),
     addRibbons(b, g, { channel: 'propagate', quality, n: 3, color: 0xb08ce2, hue: 'rgba(176,140,226,0.8)', y: -0.1, amp: 0.04, width: 0.9 }),
   ];
   return composeScene(g, b, layers);
