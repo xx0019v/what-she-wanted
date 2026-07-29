@@ -78,6 +78,14 @@ export interface RigPerformance {
   glow?: string;
   /** her light leaving her: posture sags, brightness falls */
   drain?: string;
+  /** an object drawing inward on itself — the moon contracting before it gives */
+  contract?: string;
+  /** the story's colour soaking into this figure or object */
+  tint?: string;
+  /** walking away: the figure shrinks and lifts toward the vanishing point */
+  recede?: string;
+  /** a role being taken on: the cloak reshapes and the posture changes */
+  becoming?: string;
 }
 
 export interface RigOptions {
@@ -198,6 +206,10 @@ export function addRig(b: Bag, group: THREE.Group, o: RigOptions): RigHandle {
       const rc = L(levels, o.perf.reach);
       const gl = L(levels, o.perf.glow);
       const dr = L(levels, o.perf.drain);
+      const con = L(levels, o.perf.contract);
+      const tn = L(levels, o.perf.tint);
+      const rec = L(levels, o.perf.recede);
+      const bec = L(levels, o.perf.becoming);
 
       // ── the performance ──
       // The step is carried by the LEGS and the lean, not by sliding the whole
@@ -211,9 +223,16 @@ export function addRig(b: Bag, group: THREE.Group, o: RigOptions): RigHandle {
       const stride = Math.sin(elapsed * 1.05) * stp;
       const sag = dr * 0.035;                   // her light leaving takes her posture with it
 
+      // Walking away is a change of SIZE and HEIGHT, not a slide across the
+      // page: she is heading toward the vanishing point, so she shrinks and
+      // lifts. That reads as distance and never uncovers what is behind her.
+      const recedeScale = 1 - rec * 0.28;
+      const recedeLift = rec * 0.022;
+
       for (const p of parts) {
         const s = p.st;
-        s.rot = 0; s.dx = forward; s.dy = breath; s.sx = 1; s.sy = 1; s.tint = 1;
+        s.rot = 0; s.dx = forward; s.dy = breath + recedeLift;
+        s.sx = recedeScale; s.sy = recedeScale; s.tint = 1;
 
         switch (p.name) {
           case 'hair':
@@ -236,7 +255,26 @@ export function addRig(b: Bag, group: THREE.Group, o: RigOptions): RigHandle {
             break;
           case 'skirt':
             s.rot = lean * 0.7 + Math.sin(elapsed * 0.55 + 0.8) * 0.055 * (0.2 + sw) + stride * 0.06;
-            s.sx = 1 + sw * 0.03 + ln * 0.015;
+            s.sx = recedeScale * (1 + sw * 0.03 + ln * 0.015);
+            break;
+          case 'cloak':
+            // The transformation lives here. The cloak widens at the hem and
+            // draws up at the shoulder as the role is taken on — a change of
+            // silhouette, gradual enough to miss the first time.
+            s.rot = Math.sin(elapsed * 0.4 + 0.6) * 0.012 * (0.2 + sw) - bec * 0.02;
+            s.sx = 1 + bec * 0.07 + sw * 0.015;
+            s.sy = 1 + bec * 0.035;
+            break;
+          case 'hand':
+            // it rises, and by the end it is reaching past the page
+            s.rot = -rc * 0.55;
+            s.dy = breath + rc * 0.055 + bec * 0.012;
+            s.dx = forward + rc * 0.03;
+            break;
+          case 'moon':
+            // it draws inward before it gives the violet back to the world
+            s.sx = s.sy = (1 - con * 0.09) * (1 + Math.sin(elapsed * 0.35) * 0.008);
+            s.dy = breath * 1.4;
             break;
           case 'robe':
             // a long trailing cut-out: breathe it with scale, not with swing
@@ -270,10 +308,12 @@ export function addRig(b: Bag, group: THREE.Group, o: RigOptions): RigHandle {
         p.pivot.position.x = p.meta.pivotX + s.dx;
         p.pivot.position.y = p.meta.pivotY + s.dy;
         p.pivot.scale.set(s.sx, s.sy, 1);
-        // the drained figure dims a little; otherwise she is exactly as printed
-        const dim = 1 - dr * 0.35;
-        p.mat.color.setScalar(dim);
-        p.mat.opacity = master * on;
+        // The drained figure dims; a tinted one takes the story's colour into
+        // its own paint; a receding one fades into the distance. Otherwise she
+        // is exactly as printed.
+        const dim = 1 - dr * 0.35 - rec * 0.25;
+        p.mat.color.setRGB(dim, dim * (1 - tn * 0.16), dim * (1 + tn * 0.10));
+        p.mat.opacity = master * on * (1 - rec * 0.35);
       }
 
       if (patchMat) patchMat.opacity = master * on;

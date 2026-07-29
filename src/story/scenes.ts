@@ -15,7 +15,6 @@ import {
   addRings, addWash, addForwardShadow, addStars, addTendrils, addGround,
   type Layer, type Quality,
 } from './sceneKit';
-import { addCharacter } from './characters';
 import { addRig } from './rig';
 import { addTransfer, addWavefront, addGathering, addLink, addAttention } from './magic';
 
@@ -270,8 +269,16 @@ export function createQuestionScene({ quality }: Opts): StoryScene {
 export function createVioletMoonScene({ quality }: Opts): StoryScene {
   const g = new THREE.Group(); const b = new Bag();
   const moonPos = V3(0, PAGE_ASPECT * 0.06, 0.16);
+  const moonRig = addRig(b, g, {
+    page: 11, character: 'sky',
+    perf: { presence: 'blueMoon', breathe: 'blueMoon', contract: 'memoryRings', glow: 'violetSeep', tint: 'violetSeep' },
+  });
   const layers: Layer[] = [
     addStars(b, g, { channel: 'blueMoon', quality, n: 50 }),
+    // The page's own painted moon, cut from the artwork: it breathes, CONTRACTS
+    // once as the memory reaches its core, then releases. The procedural moon
+    // behind it supplies the halo and the violet that soaks in from within.
+    moonRig,
     addMoon(b, g, { pos: moonPos, size: 0.24, channel: 'blueMoon', violetChannel: 'violetSeep', haloScale: 2.4 }),
     // memory arriving INTO the moon from the space around it — the cause
     addTransfer(b, g, {
@@ -385,17 +392,25 @@ export function createCycleScene({ quality }: Opts): StoryScene {
   const g = new THREE.Group(); const b = new Bag();
 
   // far away, walking off: small, cool, fading
-  const girl = addCharacter(b, g, {
-    kind: 'girl', x: 0.02, yFeet: -0.075, z: 0.06, h: 0.075, facing: 1,
-    presence: 'departure', breathe: 'departure', lean: 'departure',
-    sway: 'openingMist', glow: 'departure', drain: 'watcherViolet',
+  // She walks away: two steps, hair and dress trailing, growing fainter.
+  const girl = addRig(b, g, {
+    page: 17, character: 'girl', facing: 1,
+    perf: {
+      presence: 'departure', breathe: 'departure', lean: 'departure',
+      step: 'departure', sway: 'openingMist', glow: 'departure',
+      drain: 'watcherViolet', recede: 'continuation',
+    },
   });
-  // near, staying, turning into the next witch
-  const watcher = addCharacter(b, g, {
-    kind: 'woman', x: -0.235, yFeet: -HALF_H + 0.01, z: 0.07, h: 0.3, facing: 1,
-    presence: 'departure', breathe: 'departure', sway: 'openingMist',
-    glow: 'watcherViolet',
-    rim: 0x9a7cd8, rimHue: 'rgba(158,124,216,0.9)',
+  // She stays: the cloak reshapes, the hand rises, the posture becomes the
+  // witch's. Nothing flashes — it is only obvious in hindsight.
+  const watcher = addRig(b, g, {
+    page: 17, character: 'witch', facing: 1,
+    perf: {
+      presence: 'departure', breathe: 'departure', sway: 'openingMist',
+      reach: 'continuation', glow: 'watcherViolet', tint: 'watcherViolet',
+      becoming: 'watcherViolet',
+    },
+    rimColor: 0x9a7cd8, rimHue: 'rgba(158,124,216,0.9)',
   });
 
   const layers: Layer[] = [
