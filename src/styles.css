@@ -134,11 +134,29 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .link:hover, .link:focus-visible { opacity: 1; }
 
 /* ── Overlays ─────────────────────────────────────────── */
-.veil { position: absolute; inset: 0; z-index: 80; display: grid; place-items: center; background: var(--forest-black); }
-.center-col { display: flex; flex-direction: column; align-items: center; gap: 26px; text-align: center; padding: 0 8vw; }
+/* `overflow-y: auto` is a safety net, not the fix: the layout below is sized to
+   fit short landscape heights on its own. But no stack of content should ever
+   be truly unreachable, so if an unusual device/text-size combination still
+   overflows, the veil scrolls instead of clipping. touch-action allows vertical
+   panning here even though `.stage` (the AR/camera view) forbids all gestures. */
+.veil {
+  position: absolute; inset: 0; z-index: 80; display: grid; place-items: center;
+  background: var(--forest-black);
+  overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.center-col {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: clamp(10px, 2.6vh, 26px); padding: max(3vh, env(safe-area-inset-top)) 8vw max(3vh, env(safe-area-inset-bottom));
+  margin: auto; /* centers when short; lets the grid parent scroll when tall */
+}
 
 .title {
-  font-size: clamp(2.4rem, 8vw, 5.4rem);
+  /* min() of vw and vh so a SHORT-but-wide landscape phone shrinks the title by
+     height, not just a narrow portrait shrinking it by width. Without the vh
+     term this stayed near its 5.4rem ceiling in landscape and, combined with
+     every other stacked element below it, overflowed the veil entirely. */
+  font-size: clamp(2rem, min(8vw, 9vh), 5.4rem);
   font-weight: 500;
   letter-spacing: 0.16em;
   margin: 0;
@@ -157,7 +175,7 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 .prompt-wrap { position: absolute; inset: 0; z-index: 70; display: grid; place-items: center; background: radial-gradient(ellipse at center, rgba(10,14,26,0.15) 0%, rgba(6,9,15,0.72) 70%); animation: fadeIn 1.2s var(--ease) both; }
 .prompt-q { font-size: clamp(1.5rem, 4.5vw, 2.7rem); letter-spacing: 0.14em; margin: 0 0 6px; text-align: center; }
 .prompt-q .jp { display: block; font-family: var(--jp); font-weight: 300; font-size: 0.5em; letter-spacing: 0.2em; opacity: 0.7; margin-top: 10px; }
-.prompt-actions { display: flex; gap: 22px; margin-top: 34px; flex-wrap: wrap; justify-content: center; }
+.prompt-actions { display: flex; gap: clamp(10px, 2.2vh, 22px); margin-top: clamp(8px, 3vh, 34px); flex-wrap: wrap; justify-content: center; }
 
 /* page navigation dots */
 .dots { position: absolute; z-index: 60; bottom: max(3vh, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 7px; }
@@ -327,14 +345,21 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
   box-shadow: inset 0 0 34vw 8vw rgba(4, 7, 13, 0.72);
   background: radial-gradient(120% 80% at 50% 120%, rgba(10,14,26,0) 40%, rgba(4,7,13,0.5) 100%);
 }
-.landing-col { position: relative; z-index: 2; gap: var(--space-3); }
+/* This stack — kicker, title, rule, lede, two buttons, language toggle, note —
+   is nine elements deep. In landscape on a phone (iPhone: ~375–430px tall) that
+   stack, at its old fixed sizes, was reliably taller than the screen; with the
+   page's `overflow:hidden` there was nowhere for the overflow to go, which read
+   as the layout being "zoomed in" and stuck. Every size below now yields to
+   vh as well as vw, so the whole stack fits a short landscape height on its
+   own — the veil's own overflow-y:auto stays only as a fallback. */
+.landing-col { position: relative; z-index: 2; gap: clamp(8px, 2.2vh, 22px); }
 
 .kicker {
-  margin: 0; font-size: 0.72rem; letter-spacing: 0.42em; text-transform: uppercase;
+  margin: 0; font-size: clamp(0.6rem, 1.6vh, 0.72rem); letter-spacing: 0.42em; text-transform: uppercase;
   color: var(--moonlight); opacity: 0.62;
 }
 .title {
-  font-size: clamp(2.5rem, 8.5vw, 5.6rem);
+  font-size: clamp(1.9rem, min(8.5vw, 9vh), 5.6rem);
   font-weight: 500; letter-spacing: 0.12em; line-height: 1.02; margin: 0;
   color: var(--mist);
   text-shadow: 0 0 34px rgba(169, 195, 230, 0.28), 0 2px 40px rgba(10, 14, 26, 0.9);
@@ -347,14 +372,26 @@ button { font-family: inherit; color: inherit; cursor: pointer; }
 @keyframes ruleGrow { to { width: min(220px, 42vw); } }
 .lede {
   margin: 0; max-width: 30ch;
-  font-size: clamp(1rem, 1.4vw + 0.7rem, 1.4rem); line-height: 1.5;
+  font-size: clamp(0.85rem, min(1.4vw + 0.7rem, 3.4vh), 1.4rem); line-height: 1.5;
   color: var(--moonlight-soft); opacity: 0.9;
 }
-.veil.landing .note { max-width: 34ch; opacity: 0.44; }
+.veil.landing .note { max-width: 34ch; opacity: 0.44; font-size: clamp(0.62rem, 1.6vh, 0.74rem); }
+
+/* Below ~480px of height (any phone in landscape) the note is the least
+   essential line on the screen — printed-page instructions the "Begin AR" flow
+   repeats anyway — so it steps aside first, before anything load-bearing does. */
+@media (max-height: 480px) {
+  .veil.landing .note { display: none; }
+  .veil.landing .kicker { display: none; }
+}
 
 /* ── Buttons (refined) ───────────────────────────────── */
 .ghost {
-  letter-spacing: 0.3em; padding: 15px 34px; font-size: 0.8rem;
+  letter-spacing: 0.3em; font-size: 0.8rem;
+  /* vertical padding yields in short landscape; 44px min-height keeps the iOS
+     tap-target floor regardless of how thin the padding gets */
+  padding: clamp(10px, 2.4vh, 15px) 34px;
+  min-height: 44px;
   border-color: rgba(169, 195, 230, 0.32);
   background: rgba(10, 14, 26, 0.22);
 }
